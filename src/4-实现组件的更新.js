@@ -1,4 +1,3 @@
-import { updateQueue } from "./component";
 import React from "./react";
 import ReactDOM from "./react-dom";
 
@@ -11,24 +10,18 @@ class ClassComponent extends React.Component {
     super(props); //执行父类的构造函数
     this.state = { num: 0 };
     this.props = props;
-    this.result = React.createRef();
-    this.a = React.createRef();
-    this.b = React.createRef();
     //定义属性
   }
 
-  addSum = () => {
-    console.log(this.a);
-    let a = this.a.current.value;
-    let b = this.b.current.value;
-    this.result.current.value = a + b;
+  //接受方法
+  handleClick = () => {
+    this.setState({ num: this.state.num + 1 });
   };
   render() {
     return (
       <div>
-        <input ref={this.a}></input>+<input ref={this.b}></input>
-        <button onClick={this.addSum}>求和</button>
-        <input ref={this.result}></input>
+        <h1>{this.state.num}</h1>
+        <button onClick={this.handleClick}> + </button>
       </div>
     );
   }

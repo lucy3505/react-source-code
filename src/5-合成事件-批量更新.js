@@ -11,24 +11,30 @@ class ClassComponent extends React.Component {
     super(props); //执行父类的构造函数
     this.state = { num: 0 };
     this.props = props;
-    this.result = React.createRef();
-    this.a = React.createRef();
-    this.b = React.createRef();
     //定义属性
   }
 
-  addSum = () => {
-    console.log(this.a);
-    let a = this.a.current.value;
-    let b = this.b.current.value;
-    this.result.current.value = a + b;
+  //接受方法
+  handleClick = () => {
+    //宏任务  标识->true
+    //异步：事件函数和React 内部方法（生命周期）
+    //同步：其他就是同步
+    // updateQueue.isBatchData = true;
+    this.setState({ num: this.state.num + 1 }); //更新器updater
+    this.setState({ num: this.state.num + 1 }); //更新器updater
+    //执行列队
+    // updateQueue.isBatchData = false;
+    // updateQueue.batchUpdate();
+    // setTimeout(() => {
+    //   //同步
+    //   this.setState({ num: this.state.num + 1 });
+    // }, 1000);
   };
   render() {
     return (
       <div>
-        <input ref={this.a}></input>+<input ref={this.b}></input>
-        <button onClick={this.addSum}>求和</button>
-        <input ref={this.result}></input>
+        <h1>{this.state.num}</h1>
+        <button onClick={this.handleClick}> + </button>
       </div>
     );
   }
