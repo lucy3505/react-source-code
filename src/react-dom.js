@@ -1,5 +1,6 @@
 //初始化react元素
 
+import { updateElementAccess } from "typescript";
 import addEvent from "./event";
 import { REACT_FORWARDREF, REACT_TEXT } from "./stants";
 
@@ -9,8 +10,12 @@ function render(vdom, container) {
 
 function mount(vdom, container) {
   //1.vdom=>真实dom
+  //   if (!vdom) return;
 
   let newDom = createDom(vdom);
+  if (newDom.componentDidMount) {
+    newDom.componentDidMount();
+  }
   //2.真实dom放到对应位置
   container.appendChild(newDom);
 }
@@ -73,12 +78,22 @@ function mountClassComponent(vdom) {
   let { type, props, ref } = vdom;
   //注意 type是一个类 =》render返回值
   let classInstance = new type(props);
+  vdom.classInstance = classInstance;
   //   let classVnode = classInstance.render();
   //   return createDom(classVnode);
   if (ref) ref.current = classInstance;
-  let classVDom = classInstance.render();
+
+  //组件将要挂载
+  if (classInstance.componentWillMount) {
+    classInstance.componentWillMount();
+  }
+  let classVDom = classInstance.render(); //获取到vnode
   vdom.oldRenderVnode = classInstance.oldRenderVnode = classVDom;
-  return createDom(classVDom);
+  let dom = createDom(classVDom);
+  if (classInstance.componentDidMount) {
+    dom.componentDidMount = classInstance.componentDidMount;
+  }
+  return dom;
 }
 
 //处理函数组件
@@ -139,12 +154,149 @@ function updateProps(dom, oldProps, newProps) {
 }
 
 //实现更新
-export function twoVnode(parentDom, oldVnode, newVnode) {
+export function twoVnode(parentDom, oldVnode, newVnode, nextDOM) {
   //获取到新的真实dom
-  let newDom = createDom(newVnode);
-  let oldDom = findDOM(oldVnode);
-  parentDom.replaceChild(newDom, oldDom);
+  //   let newDom = createDom(newVnode);
+  //   let oldDom = findDOM(oldVnode);
+  //   parentDom.replaceChild(newDom, oldDom);
   //更新
+
+  if (!oldVnode && !newVnode) {
+    return;
+  } else if (oldVnode && !newVnode) {
+    //1 旧的有 新的没有
+    unmountVnode(oldVnode);
+  } else if (!oldVnode && newVnode) {
+    //2就的没有新的有 =》插入新
+    // mountVnode(parentDom, newVnode, nextDOM);
+    let newDom = createDom(newVnode);
+    if (nextDOM) {
+      parentDom.insertBefore(newDom, nextDOM);
+    } else {
+      parentDom.appendChild(newDom);
+    }
+    //挂载完毕
+    if (newDom.componentDidMount) {
+      newDom.componentDidMount();
+    }
+  } else if (oldVnode && newVnode && oldVnode.type !== newVnode.type) {
+    //3 两个都有 =》1类型 原生 函数  class
+    //删除老的 添加新的 div h
+    unmountVnode(oldVnode);
+    mountVnode(parentDom, newVnode, nextDOM);
+  } else {
+    //4 类型相同 =》更新缘故
+    updateElement(oldVnode, newVnode);
+  }
+}
+
+//class
+function updateClassComponent(oldVnode, newVnode) {
+  let classInstance = (newVnode.classInstance = oldVnode.classInstance);
+  if (classInstance.componentWillReceiveProps) {
+    classInstance.componentWillReceiveProps(newVnode.props);
+  }
+  //更新 -》 component.js
+  classInstance.updater.emitUpdate(newVnode.props);
+}
+
+//function
+function updateFunctionComponent(oldVnode, newVnode) {
+  let parentDom = findDOM(oldVnode).parentNode;
+  let { type, props } = newVnode;
+  let newRenderVdom = type(props); //获取到新的组件的vnode
+  twoVnode(parentDom, oldVnode.oldRenderVnode, newRenderVdom);
+  //会面会新的变旧的
+  oldVnode.oldRenderVnode = newRenderVdom;
+}
+
+function updateElement(oldVnode, newVnode) {
+  //1文本 2div 3function
+  //节点  注意：react=》不同的类型不能复用
+  if (oldVnode.type == REACT_TEXT && newVnode.type == REACT_TEXT) {
+    //复用
+    let currentDOM = (newVnode.dom = findDOM(oldVnode));
+    currentDOM.textContent = newVnode.content;
+  } else if (typeof oldVnode.type == "string") {
+    let currentDOM = (newVnode.dom = findDOM(oldVnode));
+    //更新属性
+    updateProps(currentDOM, oldVnode.props, newVnode.props);
+    //处理children
+    updatechildren(
+      currentDOM,
+      oldVnode.props.children,
+      newVnode.props.children
+    );
+  } else if (typeof oldVnode.type === "function") {
+    if (oldVnode.type.isReactComponent) {
+      //class
+      //复用实例
+      newVnode.classInstance = oldVnode.classInstance;
+      //更新class组件
+      updateClassComponent(oldVnode, newVnode);
+    } else {
+      //函数组件
+      updateFunctionComponent(oldVnode, newVnode);
+    }
+  }
+}
+
+function updatechildren(currentDOM, oldChildren, newChildren) {
+  oldChildren = Array.isArray(oldChildren) ? oldChildren : [oldChildren];
+  newChildren = Array.isArray(newChildren) ? newChildren : [newChildren];
+
+  let maxLength = Math.max(oldChildren.length, newChildren.length);
+  for (let i = 0; i < maxLength; i++) {
+    //更新组件
+    //注意一下
+    let nextVDOM = oldChildren.find(
+      (item, index) => index > i && item && findDOM(item)
+    );
+    twoVnode(
+      currentDOM,
+      oldChildren[i],
+      newChildren[i],
+      nextVDOM && findDOM(nextVDOM)
+    );
+  }
+}
+
+//添加新的
+function mountVnode(parentDom, newVnode, nextDOM) {
+  let newDom = findDOM(newVnode);
+  if (nextDOM) {
+    parentDom.insertBefore(newDom, nextDOM);
+  } else {
+    parentDom.appendChild(newDom);
+  }
+  //生命周期
+  if (newDom.componentDidMount) {
+    newDom.componentDidMount();
+  }
+}
+
+//删除老的
+function unmountVnode(vdom) {
+  let { type, props, ref } = vdom;
+  let currentDOM = findDOM(vdom);
+  if (vdom.classInstance && vdom.classInstance.componentWillUnmount) {
+    vdom.classInstance.componentWillUnmount();
+  }
+  if (ref) {
+    ref.current = null;
+  }
+  if (props.children) {
+    //children=>1 {},[]
+    let children = Array.isArray(props.children)
+      ? props.children
+      : [props.children];
+    //递归
+    children.forEach(unmountVnode);
+  }
+  //删除元素
+  if (currentDOM) {
+    currentDOM.parentNode.removeChild(currentDOM);
+  }
 }
 
 // 获取真实dom
