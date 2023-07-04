@@ -1,42 +1,51 @@
-import { updateQueue } from "./component";
-import React from "./react";
-import ReactDOM from "./react-dom";
+import React from "react";
+import ReactDOM from "react-dom";
 
-//实现组件的更新
-//组件数据来源：1）一个是父组件属性 2）内部定义的
-//更新数据，更新state状态，只有唯一的方法 setState()
-
-class ClassComponent extends React.Component {
+class Counter extends React.Component {
   constructor(props) {
-    super(props); //执行父类的构造函数
+    super(props);
     this.state = { num: 0 };
-    this.props = props;
-    this.result = React.createRef();
-    this.a = React.createRef();
-    this.b = React.createRef();
-    //定义属性
+
+    console.log("counter1:constructor(初始化)");
   }
 
-  addSum = () => {
-    console.log(this.a);
-    let a = this.a.current.value;
-    let b = this.b.current.value;
-    this.result.current.value = a + b;
+  componentWillMount() {
+    console.log("Counter2:componentWillMount(组件挂载之前)");
+  }
+
+  componentDidMount() {
+    //写axios
+    console.log("Counter4:componentWillMount(组件挂载完毕)");
+  }
+
+  //组件是否需要更新 更新 =》true 更新 false 不更新组件 更新数据
+  shouldComponentUpdate(nextProps, nextState) {
+    console.log("Counter5:shouldComponentUpdate(组件是否要更新)");
+    //nextProps:父组件上的属性 2 nextState: 内部的数据
+    console.log(nextState);
+    return nextState.num % 2 == 0; //更新页面
+  }
+
+  UNSAFE_componentWillUpdate() {
+    console.log("Counter6:shouldComponentUpdate(组件是将要更新)");
+  }
+  componentDidUpdate() {
+    console.log("Counter6:shouldComponentUpdate(组件是更新完毕)");
+  }
+
+  handlerClick = () => {
+    this.setState({ num: this.state.num + 1 });
   };
+
   render() {
+    console.log("Counter3:componentWillMount(组件render)");
     return (
       <div>
-        <input ref={this.a}></input>+<input ref={this.b}></input>
-        <button onClick={this.addSum}>求和</button>
-        <input ref={this.result}></input>
+        <p>{this.state.num}</p>
+        <button onClick={this.handlerClick}>+</button>
       </div>
     );
   }
 }
 
-//使用
-//babel=>js React.createElement(ClassComponent)
-let element = <ClassComponent name="1"></ClassComponent>; //webpack babel
-console.log(element);
-
-ReactDOM.render(<ClassComponent name="1" />, document.getElementById("root"));
+ReactDOM.render(<Counter name="1" />, document.getElementById("root"));

@@ -1,7 +1,7 @@
 //初始化react元素
 
 import addEvent from "./event";
-import { REACT_TEXT } from "./stants";
+import { REACT_FORWARDREF, REACT_TEXT } from "./stants";
 
 function render(vdom, container) {
   mount(vdom, container);
@@ -22,6 +22,9 @@ function createDom(vdom) {
   //vdom=>真实dom vue3 {type:props}
   let { type, props, ref } = vdom;
   let dom; //真实的dom
+  if (type && type.$$typeofs === REACT_FORWARDREF) {
+    return mountForwardRef(vdom);
+  }
   //1.判断type =>文本 或者元素 div
 
   if (type == REACT_TEXT) {
@@ -30,13 +33,14 @@ function createDom(vdom) {
     //区分 1函数式组件 2 。类组件
     if (type.isReactComponent) {
       //类组件
-      dom = mountClassComponent(vdom);
+      return mountClassComponent(vdom);
     } else {
-      dom = mountFunctionComponent(vdom);
+      return mountFunctionComponent(vdom);
     }
   } else {
     dom = document.createElement(type);
   }
+
   //2,处理属性 <div></div> 注意 children  style:{color:red,fontsize:20}
   if (props) {
     //{}
@@ -49,6 +53,7 @@ function createDom(vdom) {
       changeChildren(children, dom);
     }
   }
+
   vdom.dom = dom;
   if (ref) {
     ref.current = dom;
@@ -56,16 +61,23 @@ function createDom(vdom) {
   return dom;
 }
 
+//处理forwardRef
+function mountForwardRef(vdom) {
+  let { type, props, ref } = vdom;
+  let refVnode = type.render(props, ref);
+  return createDom(refVnode);
+}
 //处理类组件
 function mountClassComponent(vdom) {
   //React.createElement()
-  let { type, props } = vdom;
+  let { type, props, ref } = vdom;
   //注意 type是一个类 =》render返回值
   let classInstance = new type(props);
   //   let classVnode = classInstance.render();
   //   return createDom(classVnode);
+  if (ref) ref.current = classInstance;
   let classVDom = classInstance.render();
-  classInstance.oldRenderVnode = classVDom;
+  vdom.oldRenderVnode = classInstance.oldRenderVnode = classVDom;
   return createDom(classVDom);
 }
 
@@ -73,6 +85,7 @@ function mountClassComponent(vdom) {
 function mountFunctionComponent(vdom) {
   let { type, props } = vdom;
   let functionVdom = type(props);
+  vdom.oldRenderVnode = functionVdom;
 
   return createDom(functionVdom);
 }
@@ -129,9 +142,23 @@ function updateProps(dom, oldProps, newProps) {
 export function twoVnode(parentDom, oldVnode, newVnode) {
   //获取到新的真实dom
   let newDom = createDom(newVnode);
-  let oldDom = oldVnode.dom;
+  let oldDom = findDOM(oldVnode);
   parentDom.replaceChild(newDom, oldDom);
   //更新
+}
+
+// 获取真实dom
+export function findDOM(vdom) {
+  //获取到真实dom
+  if (!vdom) {
+    return null;
+  }
+  if (vdom.dom) {
+    return vdom.dom;
+  } else {
+    //没有真实dom
+    return findDOM(vdom.oldRenderVnode);
+  }
 }
 
 const ReactDOM = {

@@ -1,4 +1,4 @@
-import { twoVnode } from "./react-dom";
+import { findDOM, twoVnode } from "./react-dom";
 
 export const updateQueue = {
   isBatchData: false,
@@ -85,7 +85,7 @@ class Component {
     //1的vnode
     let newVDom = this.render();
     let oldVDom = this.oldRenderVnode; //初始化的时候有旧的vnode
-    let oldDom = oldVDom.dom;
+    let oldDom = findDOM(oldVDom);
     //实现组件更新
     twoVnode(oldDom.parentNode, oldVDom, newVDom); //1 旧的真正元素 2 旧的vnode 3新的vnode
     this.oldRenderVnode = newVDom;

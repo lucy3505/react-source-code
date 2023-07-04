@@ -6,7 +6,7 @@
 //       color: "red"
 //     }
 
-import { REACT_ELEMENT } from "./stants";
+import { REACT_ELEMENT, REACT_FORWARDREF } from "./stants";
 import { toObject } from "./util";
 import Component from "./component";
 //   }, "hello");
@@ -40,6 +40,10 @@ function createRef() {
   return { current: null };
 }
 
-const React = { createElement, Component, createRef };
+function forwardRef(render) {
+  return { $$typeofs: REACT_FORWARDREF, render };
+}
+
+const React = { createElement, Component, createRef, forwardRef };
 
 export default React;
